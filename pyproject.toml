@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "ai"
+version = "0.1.0"
+description = ""
+authors = ["Lampower <123113309+Lampower@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pandas = "^2.3.3"
+numpy = "^2.3.3"
+scipy = "^1.16.2"
+pymongo = "^4.15.3"
+matplotlib = "^3.10.7"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
