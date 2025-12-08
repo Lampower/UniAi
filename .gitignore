@@ -1,0 +1,28 @@
+# Python
+*.pyc
+__pycache__/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+alembic
+
+# Environment variables
+.env
+.env.save
+venv/
+
+# IDE-specific files
+.vscode/
+.idea/
+
+# Miscellaneous
+*.swp
+.DS_Store
+
+poetry.lock
+logs/
