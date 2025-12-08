@@ -55,9 +55,10 @@ async def main():
         if not user_data:
             await message.answer("Не удалось получить информацию о пользователе ВКонтакте.")
             return
-        await state.update_data({f"vk_user_data_{user_id}": user_data.model_dump()})
+        await state.update_data({f"vk_user_data_{message.from_user.id}": user_data.model_dump()})
 
         analyzed_result = await analyzer.get_user_info_str(user_data)
+        await state.update_data({f'vk_user_stats_{message.from_user.id}': analyzed_result})
 
         await message.answer(analyzed_result, reply_markup=analyze_keyboard)
 
@@ -80,7 +81,7 @@ async def main():
         analyzer = Analyzer()
         analysis_result = await analyzer.analyze_user_data(user_data)
 
-        await callback_query.message.edit_text(analysis_result, reply_markup=back_to_stats_keyboard)
+        await callback_query.message.edit_text(analysis_result or "Не готово", reply_markup=back_to_stats_keyboard)
 
         await callback_query.answer()
 

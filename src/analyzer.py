@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import logging
 
-from read_file import ReadReadyModels
+# from read_file import ReadReadyModels
 from schemas.vk_schemas import UserModel
 from utils import Utils
 
@@ -18,6 +18,7 @@ class Analyzer:
 >Возраст: {age}
 >Город: {city}
 >Статус: {status}
+>Пол: {gender}
 """
         age = None
         try:
@@ -35,15 +36,18 @@ class Analyzer:
             "age": f"{age} лет" if age else "Не указано",
             "city": user_data.city.title if user_data.city else "Не указано",
             "status": user_data.status or "Не указано",
+            "gender": Utils.get_sex(user_data.sex)
         })
 
     async def analyze_user_data(self, user_data: UserModel):
-        reader = ReadReadyModels(file_path="ready_data/avg.xlsx")
-        model_data = await reader.read()
+        # reader = ReadReadyModels()
+        # model_data = reader.read()
 
-        profile_sensivity = await self.get_profile_sensivity(user_data)
+        # profile_sensivity = await self.get_profile_sensivity(user_data)
 
         analysis_result = ""
+
+        return analysis_result
 
     async def get_profile_sensivity(self, user_data: UserModel):
         dic = user_data.model_dump()
