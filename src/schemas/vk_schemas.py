@@ -83,6 +83,11 @@ class UserModel(BaseModel):
     last_name: str | None = None
     can_access_closed: bool | None = None
     is_closed: bool | None = None
+    
+    # отсебятина
+    profile_density: float | None = None
+    age: int | None = None
+    friends_count: int | None = None
 
 
 class VkApiSchema(BaseModel, Generic[T]):

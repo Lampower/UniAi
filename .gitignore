@@ -26,3 +26,7 @@ venv/
 
 poetry.lock
 logs/
+
+.*
+
+*.pyc

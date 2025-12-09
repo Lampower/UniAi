@@ -79,11 +79,9 @@ async def main():
             return
 
         analyzer = Analyzer()
-        analysis_result = await analyzer.analyze_user_data(user_data)
+        analysis_result = await analyzer.analyze_vk_user(user_data)
 
         await callback_query.message.edit_text(analysis_result or "Не готово", reply_markup=back_to_stats_keyboard)
-
-        await callback_query.answer()
 
     @dp.callback_query(lambda c: c.data == "back_to_stats")
     async def back_to_stats(callback_query: types.CallbackQuery, state: FSMContext):

@@ -33,3 +33,14 @@ class VkApi:
             response = await client.get(f"https://api.vk.com/method/{endpoint}", params=params)
             response.raise_for_status()
         return response.json()
+
+    async def get_friends_count(self, user_id: int):
+        params = {
+            'user_id': user_id,
+        }
+        try:
+            response = await self._make_request('friends.get', params)
+            friends = response["response"]["items"]
+            return len(friends)
+        except Exception:
+            return 0
