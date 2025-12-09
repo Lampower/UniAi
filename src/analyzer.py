@@ -1,5 +1,8 @@
+from io import BytesIO
 import logging
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,12 +19,12 @@ class Analyzer:
 
     async def get_user_info_str(self, user_data: UserModel) -> str:
         # Пример анализа данных
-        analysis_result = """Статистика профиля пользователя:
->Имя пользователя: {name}
->Возраст: {age}
->Город: {city}
->Статус: {status}
->Пол: {gender}
+        analysis_result = """📊 Статистика профиля пользователя 📊:
+> Имя пользователя: {name}
+> Возраст: {age}
+> Город: {city}
+> Статус: {status}
+> Пол: {gender}
 """
         age = None
         try:
@@ -119,6 +122,8 @@ class Analyzer:
         self,
         user: UserModel,
     ) -> str:
+
+        anomalies = []
         
         reader = ReadReadyModels()
         df = reader.read()
@@ -151,20 +156,18 @@ class Analyzer:
             if pd.isna(u) or pd.isna(a):
                 return
 
-            diff = u - a
-            if abs(a) > 1e-9:
-                diff_pct = diff / a * 100
-                sign = "больше" if diff > 0 else "меньше"
-                lines.append(
-                    f"{label}: у вас {fmt_num(u,0)}{unit}, "
-                    f"в среднем у {sex_name} — {fmt_num(a,0)}{unit} "
-                    f"({abs(diff_pct):.1f}% {sign} среднего)."
-                )
-            else:
-                lines.append(
-                    f"{label}: у вас {fmt_num(u,0)}{unit}, "
-                    f"для среднего значения по полу данных почти нет."
-                )
+            u_p = u * 100
+            a_p = a * 100
+            diff_pct = (u - a) / a * 100 if abs(a) > 1e-9 else None
+            sign = "выше" if u > a else "ниже"
+
+            if diff_pct is not None and abs(diff_pct) > 100:
+                anomalies.append((label, diff_pct, u_p, a_p))
+
+            lines.append(
+                f"{label}: у вас {round(u)}, среднее {round(a)} "
+                f"({abs(diff_pct):.1f}% {sign} среднего)."
+            )
 
         def compare_prob(col_user, col_df, label):
             u = float(getattr(user, col_user, float('nan')))
@@ -213,7 +216,7 @@ class Analyzer:
         higher = sum("больше среднего" in s or "выше среднего" in s for s in lines)
         lower = sum("меньше среднего" in s or "ниже среднего" in s for s in lines)
 
-        conclusion = "\n\nВывод: "
+        conclusion = "\n\n📝 Вывод: "
         if higher > lower and higher >= 4:
             conclusion += (
                 "по большинству метрик вы выглядите активнее и заметнее, "
@@ -231,5 +234,107 @@ class Analyzer:
                 "Отдельные показатели чуть выше или ниже, но без сильных перекосов."
             )
 
-        header = f"Сравнение профиля с средним профилем {sex_name}:\n"
+        if anomalies:
+            conclusion += "\n\n⚠ Обнаружены аномально отклоняющиеся показатели:\n"
+            for label, diff_pct, u, a in anomalies:
+                if diff_pct is not None:
+                    conclusion += f"• {label}: отличается на {abs(diff_pct):.1f}% от среднего.\n"
+                else:
+                    conclusion += f"• {label}: поведение редко соответствует среднему.\n"
+            conclusion += (
+                "Аномалии не обязательно плохи — они просто показывают, "
+                "что вы заметно выделяетесь от типичного поведения."
+            )
+
+        header = f"📊 Сравнение профиля с средним профилем {sex_name}:\n"
         return header + "\n".join(lines) + conclusion
+    
+
+    def get_dif(self, v1, v2):
+        if v1 is None or v2 is None:
+            return None
+        try:
+            v1 = float(v1)
+            v2 = float(v2)
+            if v2 == 0:
+                return None
+            return (v1 - v2) / v2 * 100
+        except Exception as e:
+            logging.error(e)
+            return None
+
+    async def generate_image(self, user: UserModel):
+        reader = ReadReadyModels()
+        df = reader.read()
+
+        df = df.drop(columns=self._excluded_fields, errors='ignore')
+
+        row = df[df["sex"] == user.sex]
+
+        profile_density = await self.get_profile_sensivity(user)
+        friends_count = await VkApi().get_friends_count(user.id)
+        user.profile_density = profile_density
+        user.age = await self.get_age(user)
+        user.friends_count = friends_count
+
+        diff = {}
+        if user.followers_count is not None:
+            diff["Количество подписчиков"] = self.get_dif(user.followers_count, row['followers_count']) if user.followers_count is not None else None
+        if user.friends_count is not None:
+            diff["Количество друзей"] = self.get_dif(user.friends_count, row['count']) if user.friends_count is not None else None
+        if user.age is not None:
+            diff["Возраст"] = self.get_dif(user.age, row['age']) if user.age is not None else None
+        if user.profile_density is not None:
+            diff["Заполненость профиля"] = self.get_dif(user.profile_density, row['profile_density']) if user.profile_density is not None else None
+        res = self.plot_percentage_diff(diff)
+
+        return res
+
+
+    def show_generations(self, df: pd.DataFrame):
+        numeric_cols = df.select_dtypes(include='number').columns.tolist()
+        category_col = 'generation'
+
+        df_plot = df.set_index(category_col)[numeric_cols].T  # теперь категории становятся сериями
+
+        df_plot.plot(kind='bar', figsize=(14, 6), colormap='tab20')
+        plt.title("Сравнение показателей по поколениям")
+        plt.xticks(rotation=45)
+        plt.legend(title="Поколение")
+        plt.tight_layout()
+        plt.savefig()
+
+    
+    def plot_percentage_diff(self, diff_dict):
+        metrics = list(diff_dict.keys())
+        values = list(diff_dict.values())
+
+        # ─── Рисование ───────────────────────────────────────
+        plt.figure(figsize=(12, 4))
+        bars = plt.bar(metrics, values)
+
+        #Линия сравнения
+        plt.axhline(0, color="black", linewidth=1)
+
+        plt.title(f"Отклонение пользователя от среднего по метрикам")
+        plt.xlabel("Метрика")
+        plt.ylabel("% отклонение")
+
+        # Подписываем проценты над каждой колонкой
+        for bar, val in zip(bars, values):
+            plt.text(
+                bar.get_x() + bar.get_width()/2,
+                bar.get_height(),
+                f"{val:+.0f}%",
+                ha="center",
+                va="bottom",
+                fontsize=9
+            )
+
+        # ─── Экспорт в бинарный PNG ──────────────────────────
+        buf = BytesIO()
+        plt.savefig(buf, format="png", bbox_inches="tight")
+        plt.close()
+        buf.seek(0)
+
+        return buf.read() 

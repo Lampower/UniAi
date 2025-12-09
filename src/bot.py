@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
+from aiogram.types import BufferedInputFile
 
 from analyzer import Analyzer
 from config import BOT_TOKEN
@@ -25,7 +26,7 @@ async def main():
 
     @dp.message(Command("start"))
     async def start(message: types.Message):
-        await message.answer("Привет! Я самый простой телеграм-бот 🤖")
+        await message.answer("Команды: \n/get_vk_info <user_id> - Получить информацию о пользователе ВКонтакте по его ID.")
 
     @dp.message(Command("help"))
     async def help(message: types.Message):
@@ -87,6 +88,22 @@ async def main():
     async def back_to_stats(callback_query: types.CallbackQuery, state: FSMContext):
         stats = await get_stats(state, callback_query.from_user.id)
         await callback_query.message.edit_text(stats, reply_markup=analyze_keyboard)
+
+    @dp.callback_query(lambda c: c.data == "generate_diff_image")
+    async def generate_diff_image(callback_query: types.CallbackQuery, state: FSMContext):
+        user_id = callback_query.from_user.id
+        user_data = await get_context(state, user_id)
+        if not user_data:
+            await callback_query.message.answer("Нет данных для анализа. Сначала получи информацию о пользователе ВКонтакте.")
+            return
+
+        analyzer = Analyzer()
+        diff_image_bytes = await analyzer.generate_image(user_data)
+
+        if diff_image_bytes:
+            await callback_query.message.answer_photo(photo=BufferedInputFile(diff_image_bytes, filename="diff_image.png"))
+        else:
+            await callback_query.message.answer("Не удалось сгенерировать изображение расхождения.")
 
     await dp.start_polling(bot)
 
