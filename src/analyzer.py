@@ -142,6 +142,7 @@ class Analyzer:
         user.profile_density = profile_density
         user.age = await self.get_age(user)
         user.friends_count = friends_count
+        user.followers_count = user.followers_count - user.friends_count
 
         def fmt_num(x, digits=1):
             if pd.isna(x):
@@ -276,6 +277,7 @@ class Analyzer:
         user.profile_density = profile_density
         user.age = await self.get_age(user)
         user.friends_count = friends_count
+        user.followers_count = user.followers_count - user.friends_count
 
         diff = {}
         if user.followers_count is not None:
